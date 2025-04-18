@@ -135,3 +135,19 @@ th {
   color: white;
   font-weight: bold;
 }
+.table-scroll {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.table-scroll table {
+  min-width: 900px; /* ajusta según la cantidad de columnas */
+  border-collapse: collapse;
+}
+
+.table-scroll th,
+.table-scroll td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
+}

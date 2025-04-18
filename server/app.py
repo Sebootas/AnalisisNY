@@ -57,8 +57,20 @@ def analyze_data(business_df, demo_df):
     # Top ZIPs
     top_zips = merged.sort_values('business_count', ascending=False).head(5)[['ZIP', 'business_count']]
 
+    # Ethnicity-related columns (make sure to include all ethnicities)
+    ethnicity_columns = [
+        'PERCENT PACIFIC ISLANDER', 'PERCENT HISPANIC LATINO', 'PERCENT AMERICAN INDIAN',
+        'PERCENT ASIAN NON HISPANIC', 'PERCENT WHITE NON HISPANIC', 'PERCENT BLACK NON HISPANIC',
+        'PERCENT OTHER ETHNICITY', 'PERCENT ETHNICITY UNKNOWN'
+    ]
+
+    # Filter and include the ethnicity columns in the merged DataFrame
+    ethnicity_data = merged[ethnicity_columns + ['ZIP']].fillna("").to_dict(orient='records')
+
     # Preparar todos los datos para el frontend
-    business_sample = business_df[['Business Name', 'Industry', 'Address Building', 'Address Street Name', 'License Type', 'License Status', 'DCA License Number', 'Address Borough', 'Longitude', 'Latitude', business_zip_col]].copy()
+    business_sample = business_df[['Business Name', 'Industry', 'Address Building', 'Address Street Name',
+                                   'License Type', 'License Status', 'DCA License Number', 'Address Borough',
+                                   'Longitude', 'Latitude', business_zip_col]].copy()
     business_sample.rename(columns={business_zip_col: 'ZIP'}, inplace=True)
     business_sample = business_sample.fillna("")  # Reemplazar NaN por ""
     business_data = business_sample.to_dict(orient='records')  # Sin límite de 100
@@ -77,9 +89,9 @@ def analyze_data(business_df, demo_df):
         'top_zipcodes': top_zips.to_dict(orient='records'),
         'total_zipcodes': merged.shape[0],
         'business_data': business_data,
-        'demo_data': demo_data
+        'demo_data': demo_data,
+        'ethnicity_data': ethnicity_data  # Include the ethnicity data
     }
-
 
 
 
@@ -94,6 +106,7 @@ def analyze():
 
         business_df = pd.read_csv(business_file, low_memory=False)
         demo_df = pd.read_csv(demo_file, low_memory=False)
+
 
         result = analyze_data(business_df, demo_df)
 

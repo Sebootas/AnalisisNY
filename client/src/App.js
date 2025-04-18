@@ -97,6 +97,17 @@ function App() {
     }
 
 
+    const ETHNICITY_COLUMNS = [
+        "PERCENT PACIFIC ISLANDER",
+        "PERCENT HISPANIC LATINO",
+        "PERCENT AMERICAN INDIAN",
+        "PERCENT ASIAN NON HISPANIC",
+        "PERCENT WHITE NON HISPANIC",
+        "PERCENT BLACK NON HISPANIC",
+        "PERCENT OTHER ETHNICITY",
+        "PERCENT ETHNICITY UNKNOWN"
+    ];
+
     return (
         <div className="App">
             <h1>NYC Business & Demographics Analyzer</h1>
@@ -153,24 +164,30 @@ function App() {
                     {renderPagination(businessPage, businessData.length, setBusinessPage)}
 
                     <h3>Demographic Data</h3>
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>ZIP</th>
-                            <th>Gender (Male/Female)</th>
-                            <th>Ethnicity</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {paginate(demoData, demoPage, PAGE_SIZE).map((demo, index) => (
-                            <tr key={index}>
-                                <td>{demo["ZIP"] ?? "-"}</td>
-                                <td>{(demo["PERCENT MALE"] ?? "-") + " / " + (demo["PERCENT FEMALE"] ?? "-")}</td>
-                                <td>{demo["PERCENT BLACK NON HISPANIC"] ?? "-"}</td>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>ZIP</th>
+                                <th>Gender (Male/Female)</th>
+                                {ETHNICITY_COLUMNS.map(col => (
+                                    <th key={col}>{col}</th>
+                                ))}
                             </tr>
-                        ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            {paginate(demoData, demoPage, PAGE_SIZE).map((demo, index) => (
+                                <tr key={index}>
+                                    <td>{demo["ZIP"] ?? "-"}</td>
+                                    <td>{(demo["PERCENT MALE"] ?? "-") + " / " + (demo["PERCENT FEMALE"] ?? "-")}</td>
+                                    {ETHNICITY_COLUMNS.map(col => (
+                                        <td key={col}>{demo[col] ?? "-"}</td>
+                                    ))}
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                     {renderPagination(demoPage, demoData.length, setDemoPage)}
                 </div>
             )}
