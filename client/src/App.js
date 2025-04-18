@@ -1,8 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Papa from "papaparse";
 import "./App.css";
 
 const PAGE_SIZE = 10;
+const ETHNICITY_COLUMNS = [
+    "PERCENT PACIFIC ISLANDER",
+    "PERCENT HISPANIC LATINO",
+    "PERCENT AMERICAN INDIAN",
+    "PERCENT ASIAN NON HISPANIC",
+    "PERCENT WHITE NON HISPANIC",
+    "PERCENT BLACK NON HISPANIC",
+    "PERCENT OTHER ETHNICITY",
+    "PERCENT ETHNICITY UNKNOWN"
+];
+
 
 function App() {
     const [businessFile, setBusinessFile] = useState(null);
@@ -21,65 +32,33 @@ function App() {
     const [demoPreview, setDemoPreview] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // Función de renderización para las vistas previas de la tabla
-    function renderTablePreview(data) {
-        if (!data || data.length === 0) return null;
-        const headers = Object.keys(data[0]);
-
-        return (
-            <table>
-                <thead>
-                <tr>
-                    {headers.map((header, index) => (
-                        <th key={index}>{header}</th>
-                    ))}
-                </tr>
-                </thead>
-                <tbody>
-                {data.map((row, index) => (
-                    <tr key={index}>
-                        {headers.map((header, index) => (
-                            <td key={index}>{row[header] ?? '-'}</td>
-                        ))}
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-        );
-    }
+    const getEthnicityData = (zipDemoRow) =>
+        ETHNICITY_COLUMNS.map(col => ({
+            ethnicity: col,
+            value: parseFloat(zipDemoRow[col]) || 0
+        }));
 
     const handleFileChange = (e, setter, setPreview) => {
         const file = e.target.files[0];
+        if (!file) return;
+
         setter(file);
 
-        // Leer el archivo CSV para mostrar vista previa
         Papa.parse(file, {
             complete: (result) => {
-                setPreview(result.data.slice(0, 5)); // Mostrar las primeras 5 filas
+                setPreview(result.data.slice(0, 5));
             },
             header: true,
         });
     };
 
-    const handleDrop = (e) => {
-        e.preventDefault();
-        const files = e.dataTransfer.files;
-        if (files.length) {
-            handleFileChange({ target: { files } }, setBusinessFile); // Puedes usarlo para los dos inputs
-        }
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-    };
-
     const handleAnalyze = async () => {
         setErrorMessage("");
-        setLoading(true); // Start loading
+        setLoading(true);
 
         if (!businessFile || !demoFile) {
             setErrorMessage("Please upload both files.");
-            setLoading(false); // Stop loading
+            setLoading(false);
             return;
         }
 
@@ -113,7 +92,6 @@ function App() {
                 const switched = data?.error?.toLowerCase().includes("no se encontró una columna zip válida");
 
                 if (switched) {
-                    // Intenta con los archivos intercambiados
                     const retryData = await tryAnalyze(demoFile, businessFile);
                     if (retryData.status === "success") {
                         setAnalysis(retryData.analysis);
@@ -136,7 +114,7 @@ function App() {
             console.error(err);
             setErrorMessage("Network error or server is unavailable.");
         } finally {
-            setLoading(false); // Stop loading in all cases
+            setLoading(false);
         }
     };
 
@@ -144,7 +122,7 @@ function App() {
     function paginate(data, page, pageSize) {
         if (!Array.isArray(data)) return [];
         const start = (page - 1) * pageSize;
-        return data.slice(start + 0, start + pageSize);
+        return data.slice(start, start + pageSize);
     }
 
     function renderPagination(currentPage, totalItems, setPage) {
@@ -185,17 +163,6 @@ function App() {
         );
     }
 
-    const ETHNICITY_COLUMNS = [
-        "PERCENT PACIFIC ISLANDER",
-        "PERCENT HISPANIC LATINO",
-        "PERCENT AMERICAN INDIAN",
-        "PERCENT ASIAN NON HISPANIC",
-        "PERCENT WHITE NON HISPANIC",
-        "PERCENT BLACK NON HISPANIC",
-        "PERCENT OTHER ETHNICITY",
-        "PERCENT ETHNICITY UNKNOWN"
-    ];
-
     return (
         <div className="App">
             <h1>NYC Business & Demographics Analyzer</h1>
@@ -206,7 +173,15 @@ function App() {
                 <h2>📂 Upload CSV Files</h2>
 
                 <div className="file-input-wrapper">
-                    <div className="file-drop-area" onDrop={(e) => handleFileChange(e, setBusinessFile, setBusinessPreview)} onDragOver={(e) => e.preventDefault()}>
+                    <div className="file-drop-area"
+                         onDrop={(e) => {
+                             e.preventDefault();
+                             const files = e.dataTransfer.files;
+                             if (files.length) {
+                                 handleFileChange({ target: { files } }, setBusinessFile, setBusinessPreview);
+                             }
+                         }}
+                         onDragOver={(e) => e.preventDefault()}>
                         <p>Drag & drop your Business file here or</p>
                         <label className="custom-file-input">
                             Choose Files
@@ -222,7 +197,15 @@ function App() {
                 </div>
 
                 <div className="file-input-wrapper">
-                    <div className="file-drop-area" onDrop={(e) => handleFileChange(e, setDemoFile, setDemoPreview)} onDragOver={(e) => e.preventDefault()}>
+                    <div className="file-drop-area"
+                         onDrop={(e) => {
+                             e.preventDefault();
+                             const files = e.dataTransfer.files;
+                             if (files.length) {
+                                 handleFileChange({ target: { files } }, setDemoFile, setDemoPreview);
+                             }
+                         }}
+                         onDragOver={(e) => e.preventDefault()}>
                         <p>Drag & drop your Demographic file here or</p>
                         <label className="custom-file-input">
                             Choose Files
@@ -237,8 +220,8 @@ function App() {
                     {demoFile && <span className="filename">{demoFile.name}</span>}
                 </div>
 
-                <button className="analyze-btn" onClick={handleAnalyze}>
-                    🚀 Analyze Data
+                <button className="analyze-btn" onClick={handleAnalyze} disabled={loading}>
+                    {loading ? '⏳ Analyzing...' : '🚀 Analyze Data'}
                 </button>
             </div>
 
@@ -296,7 +279,6 @@ function App() {
                         ))}
                         </tbody>
                     </table>
-
                     {renderPagination(zipIndustryPage, zipIndustryData.length, setZipIndustryPage)}
 
                     <h3>Business Data</h3>
