@@ -242,21 +242,6 @@ function App() {
                 </button>
             </div>
 
-            {/* Vista previa de los archivos CSV */}
-            {businessPreview.length > 0 && (
-                <div className="preview-section">
-                    <h3>📊 Business File Preview</h3>
-                    {renderTablePreview(businessPreview)}
-                </div>
-            )}
-
-            {demoPreview.length > 0 && (
-                <div className="preview-section">
-                    <h3>📊 Demographic File Preview</h3>
-                    {renderTablePreview(demoPreview)}
-                </div>
-            )}
-
             {loading && (
                 <div className="loader"></div>
             )}
@@ -293,26 +278,25 @@ function App() {
                     {renderPagination(individualZipPage, individualZipData.length, setIndividualZipPage)}
 
                     <h3>Negocios agrupados por ZIP e Industria</h3>
-                    <div className="table-scroll">
-                        <table>
-                            <thead>
-                            <tr>
-                                <th>ZIP</th>
-                                <th>Industry</th>
-                                <th>Count</th>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ZIP</th>
+                            <th>Industry</th>
+                            <th>Count</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {paginate(zipIndustryData, zipIndustryPage, PAGE_SIZE).map((item, i) => (
+                            <tr key={i}>
+                                <td>{item.ZIP}</td>
+                                <td>{item.Industry}</td>
+                                <td>{item.count_by_zip_industry}</td>
                             </tr>
-                            </thead>
-                            <tbody>
-                            {paginate(zipIndustryData, zipIndustryPage, PAGE_SIZE).map((item, i) => (
-                                <tr key={i}>
-                                    <td>{item.ZIP}</td>
-                                    <td>{item.Industry}</td>
-                                    <td>{item.count_by_zip_industry}</td>
-                                </tr>
-                            ))}
-                            </tbody>
-                        </table>
-                    </div>
+                        ))}
+                        </tbody>
+                    </table>
+
                     {renderPagination(zipIndustryPage, zipIndustryData.length, setZipIndustryPage)}
 
                     <h3>Business Data</h3>
