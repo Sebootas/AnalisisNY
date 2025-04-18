@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Papa from "papaparse";
 import "./App.css";
 
 const PAGE_SIZE = 10;
@@ -16,29 +17,87 @@ function App() {
     const [zipIndustryData, setZipIndustryData] = useState([]);
     const [individualZipData, setIndividualZipData] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
+    const [businessPreview, setBusinessPreview] = useState([]);
+    const [demoPreview, setDemoPreview] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const handleFileChange = (e, setter) => {
-        setter(e.target.files[0]);
+    // Función de renderización para las vistas previas de la tabla
+    function renderTablePreview(data) {
+        if (!data || data.length === 0) return null;
+        const headers = Object.keys(data[0]);
+
+        return (
+            <table>
+                <thead>
+                <tr>
+                    {headers.map((header, index) => (
+                        <th key={index}>{header}</th>
+                    ))}
+                </tr>
+                </thead>
+                <tbody>
+                {data.map((row, index) => (
+                    <tr key={index}>
+                        {headers.map((header, index) => (
+                            <td key={index}>{row[header] ?? '-'}</td>
+                        ))}
+                    </tr>
+                ))}
+                </tbody>
+            </table>
+        );
+    }
+
+    const handleFileChange = (e, setter, setPreview) => {
+        const file = e.target.files[0];
+        setter(file);
+
+        // Leer el archivo CSV para mostrar vista previa
+        Papa.parse(file, {
+            complete: (result) => {
+                setPreview(result.data.slice(0, 5)); // Mostrar las primeras 5 filas
+            },
+            header: true,
+        });
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            handleFileChange({ target: { files } }, setBusinessFile); // Puedes usarlo para los dos inputs
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
     };
 
     const handleAnalyze = async () => {
         setErrorMessage("");
+        setLoading(true); // Start loading
+
         if (!businessFile || !demoFile) {
             setErrorMessage("Please upload both files.");
+            setLoading(false); // Stop loading
             return;
         }
 
-        const formData = new FormData();
-        formData.append("business", businessFile);
-        formData.append("demographics", demoFile);
+        const tryAnalyze = async (bizFile, demoFile) => {
+            const formData = new FormData();
+            formData.append("business", bizFile);
+            formData.append("demographics", demoFile);
 
-        try {
             const res = await fetch("http://localhost:5000/api/analyze", {
                 method: "POST",
                 body: formData,
             });
 
-            const data = await res.json();
+            return await res.json();
+        };
+
+        try {
+            let data = await tryAnalyze(businessFile, demoFile);
 
             if (data.status === "success") {
                 setAnalysis(data.analysis);
@@ -51,13 +110,36 @@ function App() {
                 setZipIndustryPage(1);
                 setIndividualZipPage(1);
             } else {
-                setErrorMessage(data.message || "Error in analysis.");
+                const switched = data?.error?.toLowerCase().includes("no se encontró una columna zip válida");
+
+                if (switched) {
+                    // Intenta con los archivos intercambiados
+                    const retryData = await tryAnalyze(demoFile, businessFile);
+                    if (retryData.status === "success") {
+                        setAnalysis(retryData.analysis);
+                        setBusinessData(retryData.analysis.business_data);
+                        setDemoData(retryData.analysis.demo_data);
+                        setZipIndustryData(retryData.analysis.grouped_by_zip_industry);
+                        setIndividualZipData(retryData.analysis.top_individual_zipcodes);
+                        setBusinessPage(1);
+                        setDemoPage(1);
+                        setZipIndustryPage(1);
+                        setIndividualZipPage(1);
+                    } else {
+                        setErrorMessage("Error al analizar incluso tras intercambiar archivos: " + (retryData.message || retryData.error));
+                    }
+                } else {
+                    setErrorMessage(data.message || "Error in analysis.");
+                }
             }
         } catch (err) {
             console.error(err);
             setErrorMessage("Network error or server is unavailable.");
+        } finally {
+            setLoading(false); // Stop loading in all cases
         }
     };
+
 
     function paginate(data, page, pageSize) {
         if (!Array.isArray(data)) return [];
@@ -84,7 +166,6 @@ function App() {
                 </button>
             );
         }
-
         return (
             <div className="pagination">
                 <button
@@ -121,19 +202,64 @@ function App() {
 
             {errorMessage && <div className="error-message">{errorMessage}</div>}
 
-            <div>
-                <input type="file" accept=".csv" onChange={(e) => handleFileChange(e, setBusinessFile)} />
-                <label>Upload Businesses CSV</label>
+            <div className="upload-section">
+                <h2>📂 Upload CSV Files</h2>
+
+                <div className="file-input-wrapper">
+                    <div className="file-drop-area" onDrop={(e) => handleFileChange(e, setBusinessFile, setBusinessPreview)} onDragOver={(e) => e.preventDefault()}>
+                        <p>Drag & drop your Business file here or</p>
+                        <label className="custom-file-input">
+                            Choose Files
+                            <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => handleFileChange(e, setBusinessFile, setBusinessPreview)}
+                                className="file-input"
+                            />
+                        </label>
+                    </div>
+                    {businessFile && <span className="filename">{businessFile.name}</span>}
+                </div>
+
+                <div className="file-input-wrapper">
+                    <div className="file-drop-area" onDrop={(e) => handleFileChange(e, setDemoFile, setDemoPreview)} onDragOver={(e) => e.preventDefault()}>
+                        <p>Drag & drop your Demographic file here or</p>
+                        <label className="custom-file-input">
+                            Choose Files
+                            <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => handleFileChange(e, setDemoFile, setDemoPreview)}
+                                className="file-input"
+                            />
+                        </label>
+                    </div>
+                    {demoFile && <span className="filename">{demoFile.name}</span>}
+                </div>
+
+                <button className="analyze-btn" onClick={handleAnalyze}>
+                    🚀 Analyze Data
+                </button>
             </div>
 
-            <div>
-                <input type="file" accept=".csv" onChange={(e) => handleFileChange(e, setDemoFile)} />
-                <label>Upload Demographics CSV</label>
-            </div>
+            {/* Vista previa de los archivos CSV */}
+            {businessPreview.length > 0 && (
+                <div className="preview-section">
+                    <h3>📊 Business File Preview</h3>
+                    {renderTablePreview(businessPreview)}
+                </div>
+            )}
 
-            <button className="analyze-btn" onClick={handleAnalyze}>
-                Analyze
-            </button>
+            {demoPreview.length > 0 && (
+                <div className="preview-section">
+                    <h3>📊 Demographic File Preview</h3>
+                    {renderTablePreview(demoPreview)}
+                </div>
+            )}
+
+            {loading && (
+                <div className="loader"></div>
+            )}
 
             {analysis && (
                 <div className="results">
