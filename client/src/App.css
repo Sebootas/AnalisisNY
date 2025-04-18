@@ -1,0 +1,137 @@
+.App {
+  text-align: center;
+  padding: 2rem;
+  font-family: Arial, sans-serif;
+}
+
+input[type="file"] {
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  padding: 0.5rem;
+  width: 250px;
+  margin: 1rem;
+}
+
+.download-btn {
+  padding: 0.5rem 1rem;
+  background-color: #61dafb;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.table-container {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 1000px;
+  margin: auto;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #282c34;
+  color: white;
+}
+
+.pagination {
+  margin-top: 1rem;
+}
+
+.pagination button {
+  margin: 2px;
+  padding: 6px 12px;
+  border: 1px solid #282c34;
+  background-color: white;
+  color: #282c34;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.pagination button.active {
+  background-color: #282c34;
+  color: white;
+  font-weight: bold;
+}
+.analyze-btn {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  margin-top: 1rem;
+  cursor: pointer;
+}
+
+.results {
+  margin-top: 2rem;
+  text-align: left;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.analyze-btn {
+  margin-top: 1rem;
+  padding: 0.7rem 1.5rem;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.analyze-btn:hover {
+  background-color: #45a049;
+}
+
+.results {
+  margin-top: 2rem;
+  text-align: left;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pagination {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pagination button {
+  padding: 5px 10px;
+  background: #e0e0e0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pagination button:hover {
+  background: #c0c6ff;
+}
+
+.pagination .active-range {
+  background: #4a90e2;
+  color: white;
+  font-weight: bold;
+}
+
+.pagination .active-page {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
