@@ -9,8 +9,12 @@ function App() {
     const [analysis, setAnalysis] = useState(null);
     const [businessPage, setBusinessPage] = useState(1);
     const [demoPage, setDemoPage] = useState(1);
+    const [zipIndustryPage, setZipIndustryPage] = useState(1);
+    const [individualZipPage, setIndividualZipPage] = useState(1);
     const [businessData, setBusinessData] = useState([]);
     const [demoData, setDemoData] = useState([]);
+    const [zipIndustryData, setZipIndustryData] = useState([]);
+    const [individualZipData, setIndividualZipData] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
 
     const handleFileChange = (e, setter) => {
@@ -40,8 +44,12 @@ function App() {
                 setAnalysis(data.analysis);
                 setBusinessData(data.analysis.business_data);
                 setDemoData(data.analysis.demo_data);
+                setZipIndustryData(data.analysis.grouped_by_zip_industry);
+                setIndividualZipData(data.analysis.top_individual_zipcodes);
                 setBusinessPage(1);
                 setDemoPage(1);
+                setZipIndustryPage(1);
+                setIndividualZipPage(1);
             } else {
                 setErrorMessage(data.message || "Error in analysis.");
             }
@@ -54,7 +62,7 @@ function App() {
     function paginate(data, page, pageSize) {
         if (!Array.isArray(data)) return [];
         const start = (page - 1) * pageSize;
-        return data.slice(start, start + pageSize);
+        return data.slice(start + 0, start + pageSize);
     }
 
     function renderPagination(currentPage, totalItems, setPage) {
@@ -96,7 +104,6 @@ function App() {
         );
     }
 
-
     const ETHNICITY_COLUMNS = [
         "PERCENT PACIFIC ISLANDER",
         "PERCENT HISPANIC LATINO",
@@ -132,13 +139,55 @@ function App() {
                 <div className="results">
                     <h2>Results:</h2>
                     <p><strong>Total ZIPs analyzed:</strong> {analysis.total_zipcodes}</p>
-                    <p><strong>Correlation with Median Income:</strong> {analysis.correlation_with_income ?? "Not available"}</p>
+
                     <h3>Top ZIPs with Most Businesses</h3>
                     <ul>
                         {analysis.top_zipcodes.map((zip, i) => (
                             <li key={i}>{zip.ZIP}: {zip.business_count} businesses</li>
                         ))}
                     </ul>
+
+                    <h3>Top ZIPs with Most Individuals (Solo nombres tipo persona)</h3>
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ZIP</th>
+                            <th>Individual Count</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {paginate(individualZipData, individualZipPage, PAGE_SIZE).map((zip, i) => (
+                            <tr key={i}>
+                                <td>{zip.ZIP}</td>
+                                <td>{zip.individual_count}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                    {renderPagination(individualZipPage, individualZipData.length, setIndividualZipPage)}
+
+                    <h3>Negocios agrupados por ZIP e Industria</h3>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th>ZIP</th>
+                                <th>Industry</th>
+                                <th>Count</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {paginate(zipIndustryData, zipIndustryPage, PAGE_SIZE).map((item, i) => (
+                                <tr key={i}>
+                                    <td>{item.ZIP}</td>
+                                    <td>{item.Industry}</td>
+                                    <td>{item.count_by_zip_industry}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {renderPagination(zipIndustryPage, zipIndustryData.length, setZipIndustryPage)}
 
                     <h3>Business Data</h3>
                     <table>
