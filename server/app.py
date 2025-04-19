@@ -174,12 +174,28 @@ def pie_industries_plot():
             pd.DataFrame({'Industry': ['Other'], 'count': [other_count]})
         ])
 
-        # Crear gráfico de pastel
+        # Definir una paleta de colores distintivos
+        colors = [
+            '#4E79A7',  # blue
+            '#F28E2B',  # orange
+            '#E15759',  # red
+            '#76B7B2',  # teal
+            '#59A14F',  # green
+            '#EDC948',  # yellow
+            '#B07AA1',  # purple
+            '#FF9DA7',  # pink
+            '#9C755F',  # brown
+            '#BAB0AC',  # gray
+            '#7F7F7F'   # dark gray for "Other"
+        ]
+
+        # Crear gráfico de pastel con colores explícitos
         plt.figure(figsize=(8, 8))
         plt.pie(final_counts['count'],
                 labels=final_counts['Industry'],
                 autopct='%1.1f%%',
-                startangle=140)
+                startangle=140,
+                colors=colors)
         plt.title('Distribución de Negocios por Industria (Top 10 + Other)')
         plt.axis('equal')
 
