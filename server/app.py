@@ -157,14 +157,30 @@ def pie_industries_plot():
         business_df = pd.read_csv(business_file, low_memory=False)
         business_df.columns = business_df.columns.str.strip()
 
-        # Agrupar por Industria
+        # Agrupar por Industria y obtener los top 10
         industry_counts = business_df['Industry'].value_counts().reset_index()
         industry_counts.columns = ['Industry', 'count']
 
+        # Ordenar y limitar a top 10
+        industry_counts = industry_counts.sort_values('count', ascending=False)
+        top_10 = industry_counts.head(10)
+
+        # Calcular la suma de los demás
+        other_count = industry_counts['count'][10:].sum()
+
+        # Crear DataFrame final con "Other"
+        final_counts = pd.concat([
+            top_10,
+            pd.DataFrame({'Industry': ['Other'], 'count': [other_count]})
+        ])
+
         # Crear gráfico de pastel
         plt.figure(figsize=(8, 8))
-        plt.pie(industry_counts['count'], labels=industry_counts['Industry'], autopct='%1.1f%%', startangle=140)
-        plt.title('Distribución de Negocios por Industria')
+        plt.pie(final_counts['count'],
+                labels=final_counts['Industry'],
+                autopct='%1.1f%%',
+                startangle=140)
+        plt.title('Distribución de Negocios por Industria (Top 10 + Other)')
         plt.axis('equal')
 
         # Devolver imagen como archivo

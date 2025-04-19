@@ -299,24 +299,36 @@ function App() {
                                 <img src={plotImages.industryPie} alt="Pie chart of industries" className="chart-img" />
                             ) : (
                                 <p>Loading...</p>
-                            )}                        </div>
+                            )}
+                        </div>
 
                         <div className="chart-section">
                             <h4>Businesses per 1000 Residents (Bar Chart)</h4>
                             {plotImages.businessPerCapita ? (
-                                <img src={plotImages.businessPerCapita} alt="Bar chart of business density" className="chart-img" />
+                                <img
+                                    src={plotImages.businessPerCapita}
+                                    alt="Bar chart of business density"
+                                    className="chart-img"
+                                />
                             ) : (
                                 <p>Loading...</p>
-                            )}                        </div>
+                            )}
+                        </div>
 
                         <div className="chart-section">
                             <h4>Correlation Heatmap</h4>
                             {plotImages.correlationHeatmap ? (
-                                <img src={plotImages.correlationHeatmap} alt="Correlation heatmap" className="chart-img" />
+                                <img
+                                    src={plotImages.correlationHeatmap}
+                                    alt="Correlation heatmap"
+                                    className="chart-img"
+                                />
                             ) : (
                                 <p>Loading...</p>
-                            )}                        </div>
+                            )}
+                        </div>
                     </div>
+
 
                     <p><strong>Total ZIPs analyzed:</strong> {analysis.total_zipcodes}</p>
 
