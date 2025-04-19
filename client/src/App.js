@@ -32,6 +32,12 @@ function App() {
     const [demoPreview, setDemoPreview] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    const [plotImages, setPlotImages] = useState({
+        industryPie: null,
+        businessPerCapita: null,
+        correlationHeatmap: null,
+    });
+
     const getEthnicityData = (zipDemoRow) =>
         ETHNICITY_COLUMNS.map(col => ({
             ethnicity: col,
@@ -50,6 +56,12 @@ function App() {
             },
             header: true,
         });
+    };
+
+    const PLOT_URLS = {
+        industryPie: "http://localhost:5000/api/plot/pie_industries",
+        businessPerCapita: "http://localhost:5000/api/plot/bar_business_per_capita",
+        correlationHeatmap: "http://localhost:5000/api/plot/correlation_heatmap"
     };
 
     const handleAnalyze = async () => {
@@ -72,6 +84,9 @@ function App() {
                 body: formData,
             });
 
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
             return await res.json();
         };
 
@@ -88,6 +103,9 @@ function App() {
                 setDemoPage(1);
                 setZipIndustryPage(1);
                 setIndividualZipPage(1);
+
+                fetchPlotImages();
+
             } else {
                 const switched = data?.error?.toLowerCase().includes("no se encontró una columna zip válida");
 
@@ -103,6 +121,9 @@ function App() {
                         setDemoPage(1);
                         setZipIndustryPage(1);
                         setIndividualZipPage(1);
+
+                        fetchPlotImages();
+
                     } else {
                         setErrorMessage("Error al analizar incluso tras intercambiar archivos: " + (retryData.message || retryData.error));
                     }
@@ -118,6 +139,43 @@ function App() {
         }
     };
 
+// Fetch plot images
+    const fetchPlotImages = async () => {
+        try {
+            const fetchImage = async (url, files) => {
+                const formData = new FormData();
+                for (const [key, file] of Object.entries(files)) {
+                    formData.append(key, file);
+                }
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    body: formData
+                });
+
+                const blob = await response.blob();
+                return URL.createObjectURL(blob);
+            };
+
+
+            const files = {
+                business: businessFile,
+                demographics: demoFile
+            };
+
+            const industryPie = await fetchImage(PLOT_URLS.industryPie, { business: businessFile });
+            const businessPerCapita = await fetchImage(PLOT_URLS.businessPerCapita, files);
+            const correlationHeatmap = await fetchImage(PLOT_URLS.correlationHeatmap, files);
+
+            setPlotImages({
+                industryPie,
+                businessPerCapita,
+                correlationHeatmap
+            });
+        } catch (error) {
+            setErrorMessage("Error fetching plot images: " + error.message);
+        }
+    };
 
     function paginate(data, page, pageSize) {
         if (!Array.isArray(data)) return [];
@@ -232,6 +290,34 @@ function App() {
             {analysis && (
                 <div className="results">
                     <h2>Results:</h2>
+                    <div className="visualizations">
+                        <h3>📊 Visualizations</h3>
+
+                        <div className="chart-section">
+                            <h4>Industry Distribution (Pie Chart)</h4>
+                            {plotImages.industryPie ? (
+                                <img src={plotImages.industryPie} alt="Pie chart of industries" className="chart-img" />
+                            ) : (
+                                <p>Loading...</p>
+                            )}                        </div>
+
+                        <div className="chart-section">
+                            <h4>Businesses per 1000 Residents (Bar Chart)</h4>
+                            {plotImages.businessPerCapita ? (
+                                <img src={plotImages.businessPerCapita} alt="Bar chart of business density" className="chart-img" />
+                            ) : (
+                                <p>Loading...</p>
+                            )}                        </div>
+
+                        <div className="chart-section">
+                            <h4>Correlation Heatmap</h4>
+                            {plotImages.correlationHeatmap ? (
+                                <img src={plotImages.correlationHeatmap} alt="Correlation heatmap" className="chart-img" />
+                            ) : (
+                                <p>Loading...</p>
+                            )}                        </div>
+                    </div>
+
                     <p><strong>Total ZIPs analyzed:</strong> {analysis.total_zipcodes}</p>
 
                     <h3>Top ZIPs with Most Businesses</h3>

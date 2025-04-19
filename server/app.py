@@ -1,18 +1,21 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
 import re
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+import seaborn as sns
+from io import BytesIO
 
 
 app = Flask(__name__)
 CORS(app)
 
-
 def is_likely_individual(name):
     name = str(name).strip().lower()
     if any(word in name for word in ["corp", "inc", "llc", "co", "company", "corporation", "&", "store"]):
         return False
-    # Consideramos que un nombre es de persona si tiene 2 palabras y no contiene términos corporativos
     return bool(re.fullmatch(r"[a-z]+ [a-z]+", name))
 
 def find_zip_column(columns, posibles_nombres):
@@ -120,7 +123,6 @@ def analyze_data(business_df, demo_df):
     }
 
 
-
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
@@ -133,7 +135,6 @@ def analyze():
         business_df = pd.read_csv(business_file, low_memory=False)
         demo_df = pd.read_csv(demo_file, low_memory=False)
 
-
         result = analyze_data(business_df, demo_df)
 
         return jsonify({"status": "success", "analysis": result})
@@ -141,6 +142,165 @@ def analyze():
     except Exception as e:
         print(f"Analysis error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/plot/pie_industries', methods=['POST'])
+def pie_industries_plot():
+    try:
+        # Obtener archivo de negocios
+        business_file = request.files.get('business')
+
+        if not business_file:
+            return jsonify({"error": "Archivo de negocios faltante."}), 400
+
+        # Leer el archivo CSV
+        business_df = pd.read_csv(business_file, low_memory=False)
+        business_df.columns = business_df.columns.str.strip()
+
+        # Agrupar por Industria
+        industry_counts = business_df['Industry'].value_counts().reset_index()
+        industry_counts.columns = ['Industry', 'count']
+
+        # Crear gráfico de pastel
+        plt.figure(figsize=(8, 8))
+        plt.pie(industry_counts['count'], labels=industry_counts['Industry'], autopct='%1.1f%%', startangle=140)
+        plt.title('Distribución de Negocios por Industria')
+        plt.axis('equal')
+
+        # Devolver imagen como archivo
+        buf = BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close()
+
+        # Enviar la imagen
+        return send_file(buf, mimetype='image/png')
+
+    except Exception as e:
+        print(f"Plot error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/plot/bar_business_per_capita', methods=['POST'])
+def bar_business_per_capita_plot():
+    try:
+        # Obtener archivo de negocios y demográficos
+        business_file = request.files.get('business')
+        demo_file = request.files.get('demographics')
+
+        if not business_file or not demo_file:
+            return jsonify({"error": "Archivos de negocios o demográficos faltantes."}), 400
+
+        # Leer archivos CSV
+        business_df = pd.read_csv(business_file, low_memory=False)
+        demo_df = pd.read_csv(demo_file, low_memory=False)
+
+        # Limpiar nombres de columnas
+        business_df.columns = business_df.columns.str.strip()
+        demo_df.columns = demo_df.columns.str.strip()
+
+        # Verificar existencia de columnas necesarias
+        if 'ZIP' not in business_df.columns:
+            return jsonify({"error": "La columna 'ZIP' no se encuentra en el archivo de negocios."}), 400
+        if 'ZIP' not in demo_df.columns or 'Total Population' not in demo_df.columns:
+            return jsonify({"error": "Las columnas necesarias no se encuentran en el archivo demográfico."}), 400
+
+        # Agrupar los negocios por ZIP
+        business_zip_counts = business_df['ZIP'].value_counts().reset_index()
+        business_zip_counts.columns = ['ZIP', 'business_count']
+
+        # Unir con datos demográficos por ZIP
+        demo_zip = demo_df[['ZIP', 'Total Population']].dropna()
+        demo_zip['Total Population'] = demo_zip['Total Population'].astype(int)
+
+        # Merge y cálculo
+        combined_data = pd.merge(business_zip_counts, demo_zip, on='ZIP', how='inner')
+        combined_data['business_per_capita'] = (combined_data['business_count'] / combined_data['Total Population']) * 1000
+
+        # Ordenar (opcional)
+        combined_data.sort_values(by='business_per_capita', ascending=False, inplace=True)
+
+        # Crear gráfico
+        plt.figure(figsize=(12, 6))
+        plt.bar(combined_data['ZIP'].astype(str), combined_data['business_per_capita'])
+        plt.xlabel('ZIP Code')
+        plt.ylabel('Businesses per 1000 Residents')
+        plt.title('Businesses per 1000 Residents by ZIP')
+        plt.xticks(rotation=90)
+        plt.tight_layout()
+
+        # Devolver imagen como archivo
+        buf = BytesIO()
+        plt.savefig(buf, format="png")
+        buf.seek(0)
+        plt.close()
+
+        return send_file(buf, mimetype='image/png')
+
+    except Exception as e:
+        print(f"Plot error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/plot/correlation_heatmap', methods=['POST'])
+def correlation_heatmap_plot():
+    try:
+        # Obtener archivos
+        business_file = request.files.get('business')
+        demo_file = request.files.get('demographics')
+
+        if not business_file or not demo_file:
+            return jsonify({"error": "Archivos de negocios o demográficos faltantes."}), 400
+
+        # Leer archivos
+        business_df = pd.read_csv(business_file, low_memory=False)
+        demo_df = pd.read_csv(demo_file, low_memory=False)
+
+        business_df.columns = business_df.columns.str.strip()
+        demo_df.columns = demo_df.columns.str.strip()
+
+        # Encontrar columnas ZIP
+        business_zip_col = find_zip_column(business_df.columns, ['ZIP', 'ZIPCODE', 'ZIP CODE', 'Address ZIP'])
+        demo_zip_col = find_zip_column(demo_df.columns, ['JURISDICTION NAME', 'ZIP', 'ZIPCODE'])
+
+        if not business_zip_col or not demo_zip_col:
+            return jsonify({"error": "No se pudo encontrar una columna ZIP válida en los archivos."}), 400
+
+        business_df[business_zip_col] = business_df[business_zip_col].astype(str).str.zfill(5)
+        demo_df[demo_zip_col] = demo_df[demo_zip_col].astype(str).str.zfill(5)
+
+        # Agrupar negocios por ZIP
+        business_counts = business_df.groupby(business_zip_col).size().reset_index(name='business_count')
+        business_counts.rename(columns={business_zip_col: 'ZIP'}, inplace=True)
+
+        # Preparar datos demográficos
+        demo_df.rename(columns={demo_zip_col: 'ZIP'}, inplace=True)
+
+        # Combinar datasets
+        merged = pd.merge(demo_df, business_counts, on='ZIP', how='inner')
+
+        # Filtrar columnas numéricas para la correlación
+        numeric_cols = merged.select_dtypes(include=['number']).columns
+
+        # Calcular matriz de correlación
+        corr = merged[numeric_cols].corr()
+
+        # Crear heatmap
+        plt.figure(figsize=(12, 10))
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', square=True)
+        plt.title('Heatmap de Correlación entre Variables Numéricas')
+
+        # Devolver imagen como archivo
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        plt.close()
+
+        return send_file(buf, mimetype='image/png')
+
+    except Exception as e:
+        print(f"Heatmap error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
