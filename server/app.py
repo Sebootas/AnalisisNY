@@ -183,14 +183,14 @@ def pie_industries_plot():
 @app.route('/api/plot/bar_business_per_capita', methods=['POST'])
 def bar_business_per_capita_plot():
     try:
-        # Obtener archivo de negocios y demográficos
+        print("Archivos recibidos:", request.files.keys())
+
         business_file = request.files.get('business')
         demo_file = request.files.get('demographics')
 
         if not business_file or not demo_file:
             return jsonify({"error": "Archivos de negocios o demográficos faltantes."}), 400
 
-        # Leer archivos CSV
         business_df = pd.read_csv(business_file, low_memory=False)
         demo_df = pd.read_csv(demo_file, low_memory=False)
 
@@ -198,37 +198,41 @@ def bar_business_per_capita_plot():
         business_df.columns = business_df.columns.str.strip()
         demo_df.columns = demo_df.columns.str.strip()
 
-        # Verificar existencia de columnas necesarias
-        if 'ZIP' not in business_df.columns:
-            return jsonify({"error": "La columna 'ZIP' no se encuentra en el archivo de negocios."}), 400
-        if 'ZIP' not in demo_df.columns or 'Total Population' not in demo_df.columns:
-            return jsonify({"error": "Las columnas necesarias no se encuentran en el archivo demográfico."}), 400
+        # Verificar y adaptar columnas ZIP
+        if 'Address ZIP' in business_df.columns:
+            business_df['ZIP'] = business_df['Address ZIP'].astype(str).str.zfill(5)
+        elif 'ZIP' in business_df.columns:
+            business_df['ZIP'] = business_df['ZIP'].astype(str).str.zfill(5)
+        else:
+            return jsonify({"error": "No se encuentra una columna ZIP válida en el archivo de negocios."}), 400
 
-        # Agrupar los negocios por ZIP
+        if 'JURISDICTION NAME' not in demo_df.columns or 'COUNT GENDER TOTAL' not in demo_df.columns:
+            return jsonify({"error": "Columnas necesarias no se encuentran en el archivo demográfico."}), 400
+
+        # Agrupar negocios por ZIP
         business_zip_counts = business_df['ZIP'].value_counts().reset_index()
         business_zip_counts.columns = ['ZIP', 'business_count']
 
-        # Unir con datos demográficos por ZIP
-        demo_zip = demo_df[['ZIP', 'Total Population']].dropna()
-        demo_zip['Total Population'] = demo_zip['Total Population'].astype(int)
+        # Preparar demográficos
+        demo_df['ZIP'] = demo_df['JURISDICTION NAME'].astype(str).str.zfill(5)
+        demo_zip = demo_df[['ZIP', 'COUNT GENDER TOTAL']].dropna()
+        demo_zip.columns = ['ZIP', 'Total Population']
 
         # Merge y cálculo
         combined_data = pd.merge(business_zip_counts, demo_zip, on='ZIP', how='inner')
         combined_data['business_per_capita'] = (combined_data['business_count'] / combined_data['Total Population']) * 1000
 
-        # Ordenar (opcional)
         combined_data.sort_values(by='business_per_capita', ascending=False, inplace=True)
 
         # Crear gráfico
         plt.figure(figsize=(12, 6))
-        plt.bar(combined_data['ZIP'].astype(str), combined_data['business_per_capita'])
+        plt.bar(combined_data['ZIP'], combined_data['business_per_capita'], color='teal')
         plt.xlabel('ZIP Code')
         plt.ylabel('Businesses per 1000 Residents')
         plt.title('Businesses per 1000 Residents by ZIP')
         plt.xticks(rotation=90)
         plt.tight_layout()
 
-        # Devolver imagen como archivo
         buf = BytesIO()
         plt.savefig(buf, format="png")
         buf.seek(0)
