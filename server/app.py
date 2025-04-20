@@ -304,66 +304,85 @@ def correlation_heatmap_plot():
         business_df = pd.read_csv(business_file, low_memory=False)
         demo_df = pd.read_csv(demo_file, low_memory=False)
 
+        # Clean column names
         business_df.columns = business_df.columns.str.strip()
         demo_df.columns = demo_df.columns.str.strip()
 
-        # Find ZIP columns
-        business_zip_col = find_zip_column(business_df.columns, ['ZIP', 'ZIPCODE', 'ZIP CODE', 'Address ZIP'])
-        demo_zip_col = find_zip_column(demo_df.columns, ['JURISDICTION NAME', 'ZIP', 'ZIPCODE'])
+        # Standardize ZIP codes
+        business_df['ZIP'] = business_df['Address ZIP'].astype(str).str.extract('(\d{5})')[0]
+        demo_df['ZIP'] = demo_df['JURISDICTION NAME'].astype(str).str.extract('(\d{5})')[0]
 
-        if not business_zip_col or not demo_zip_col:
-            return jsonify({"error": "Could not find a valid ZIP column in the files."}), 400
+        # Prepare demographic data - focus on key columns
+        demo_cols = ['ZIP', 'COUNT GENDER TOTAL',
+                    'PERCENT FEMALE', 'PERCENT HISPANIC LATINO',
+                    'PERCENT ASIAN NON HISPANIC', 'PERCENT WHITE NON HISPANIC',
+                    'PERCENT BLACK NON HISPANIC']
+        demo_df = demo_df[demo_cols].dropna()
 
-        business_df[business_zip_col] = business_df[business_zip_col].astype(str).str.zfill(5)
-        demo_df[demo_zip_col] = demo_df[demo_zip_col].astype(str).str.zfill(5)
+        # Rename columns for clarity
+        demo_df.columns = ['ZIP', 'Total Population', 'Percent Female',
+                          'Percent Hispanic Latino', 'Percent Asian',
+                          'Percent White', 'Percent Black']
 
-        # Group businesses by ZIP and count
-        business_counts = business_df.groupby(business_zip_col).size().reset_index(name='business_count')
-        business_counts.rename(columns={business_zip_col: 'ZIP'}, inplace=True)
+        # Count businesses by ZIP
+        business_counts = business_df['ZIP'].value_counts().reset_index()
+        business_counts.columns = ['ZIP', 'business_count']
 
-        # Prepare demographic data, focusing on relevant columns
-        demo_zip = demo_df[[demo_zip_col,
-                            'COUNT GENDER TOTAL',
-                            'PERCENT FEMALE',
-                            'PERCENT HISPANIC LATINO',
-                            'PERCENT AMERICAN INDIAN',
-                            'PERCENT ASIAN NON HISPANIC',
-                            'PERCENT WHITE NON HISPANIC',
-                            'PERCENT BLACK NON HISPANIC']].copy()
-        demo_zip.rename(columns={demo_zip_col: 'ZIP',
-                                 'COUNT GENDER TOTAL': 'Total Population',
-                                 'PERCENT FEMALE': 'Percent Female',
-                                 'PERCENT HISPANIC LATINO': 'Percent Hispanic Latino',
-                                 'PERCENT AMERICAN INDIAN': 'Percent American Indian',
-                                 'PERCENT ASIAN NON HISPANIC': 'Percent Asian Non Hispanic',
-                                 'PERCENT WHITE NON HISPANIC': 'Percent White Non Hispanic',
-                                 'PERCENT BLACK NON HISPANIC': 'Percent Black Non Hispanic'}, inplace=True)
-        demo_zip = demo_zip.dropna()
+        # Merge data
+        merged = pd.merge(business_counts, demo_df, on='ZIP', how='inner')
+        merged['business_density'] = (merged['business_count'] / merged['Total Population']) * 1000
 
-        # Merge datasets
-        merged_data = pd.merge(business_counts, demo_zip, on='ZIP', how='inner')
+        # Calculate correlations
+        corr_cols = ['business_density', 'Total Population', 'Percent Female',
+                    'Percent Hispanic Latino', 'Percent Asian',
+                    'Percent White', 'Percent Black']
+        corr_matrix = merged[corr_cols].corr()
 
-        # Calculate business density (businesses per 1000 residents)
-        merged_data['business_density'] = (merged_data['business_count'] / merged_data['Total Population']) * 1000
+        # Create figure with adjusted size
+        plt.figure(figsize=(12, 10), dpi=120)
 
-        # Calculate the correlation matrix for relevant columns
-        correlation_matrix = merged_data[['business_density',
-                                          'Total Population',
-                                          'Percent Female',
-                                          'Percent Hispanic Latino',
-                                          'Percent American Indian',
-                                          'Percent Asian Non Hispanic',
-                                          'Percent White Non Hispanic',
-                                          'Percent Black Non Hispanic']].corr()
+        # Create heatmap with better formatting
+        ax = sns.heatmap(
+            corr_matrix,
+            annot=True,
+            fmt=".2f",
+            cmap='coolwarm',
+            center=0,
+            vmin=-1,
+            vmax=1,
+            annot_kws={"size": 12},
+            cbar_kws={"shrink": 0.8}
+        )
 
-        # Create heatmap
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-        plt.title('Correlation between Business Density and Demographics by ZIP Code')
+        # Rotate and adjust x-axis labels
+        ax.set_xticklabels(
+            ax.get_xticklabels(),
+            rotation=45,
+            ha='right',
+            fontsize=12
+        )
 
-        # Return image as file
+        # Adjust y-axis labels
+        ax.set_yticklabels(
+            ax.get_yticklabels(),
+            rotation=0,
+            fontsize=12
+        )
+
+        plt.title('Business-Demographic Correlations by ZIP Code', pad=20, fontsize=14)
+
+        # Adjust layout with more padding
+        plt.tight_layout(pad=3)
+
+        # Save with higher quality and proper bounding box
         buf = BytesIO()
-        plt.savefig(buf, format='png')
+        plt.savefig(
+            buf,
+            format='png',
+            dpi=120,
+            bbox_inches='tight',
+            pad_inches=0.5
+        )
         buf.seek(0)
         plt.close()
 
