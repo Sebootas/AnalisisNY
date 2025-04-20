@@ -147,65 +147,61 @@ def analyze():
 @app.route('/api/plot/pie_industries', methods=['POST'])
 def pie_industries_plot():
     try:
-        # Obtener archivo de negocios
+        # Get business file
         business_file = request.files.get('business')
-
         if not business_file:
             return jsonify({"error": "Archivo de negocios faltante."}), 400
 
-        # Leer el archivo CSV
+        # Read CSV
         business_df = pd.read_csv(business_file, low_memory=False)
         business_df.columns = business_df.columns.str.strip()
 
-        # Agrupar por Industria y obtener los top 10
+        # Group by Industry and get top 10
         industry_counts = business_df['Industry'].value_counts().reset_index()
         industry_counts.columns = ['Industry', 'count']
-
-        # Ordenar y limitar a top 10
         industry_counts = industry_counts.sort_values('count', ascending=False)
         top_10 = industry_counts.head(10)
-
-        # Calcular la suma de los demás
         other_count = industry_counts['count'][10:].sum()
 
-        # Crear DataFrame final con "Other"
+        # Create final DataFrame
         final_counts = pd.concat([
             top_10,
             pd.DataFrame({'Industry': ['Other'], 'count': [other_count]})
         ])
 
-        # Definir una paleta de colores distintivos
+        # Define colors
         colors = [
-            '#4E79A7',  # blue
-            '#F28E2B',  # orange
-            '#E15759',  # red
-            '#76B7B2',  # teal
-            '#59A14F',  # green
-            '#EDC948',  # yellow
-            '#B07AA1',  # purple
-            '#FF9DA7',  # pink
-            '#9C755F',  # brown
-            '#BAB0AC',  # gray
-            '#7F7F7F'   # dark gray for "Other"
+            '#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F',
+            '#EDC948', '#B07AA1', '#FF9DA7', '#9C755F', '#BAB0AC', '#7F7F7F'
         ]
 
-        # Crear gráfico de pastel con colores explícitos
-        plt.figure(figsize=(8, 8))
-        plt.pie(final_counts['count'],
-                labels=final_counts['Industry'],
-                autopct='%1.1f%%',
-                startangle=140,
-                colors=colors)
-        plt.title('Distribución de Negocios por Industria (Top 10 + Other)')
-        plt.axis('equal')
+        # Create optimized pie chart
+        plt.figure(figsize=(12, 12), dpi=120)
 
-        # Devolver imagen como archivo
+        # Shorten long labels
+        labels = [label[:29] + '...' if len(label) > 29 else label
+                 for label in final_counts['Industry']]
+
+        wedges, texts, autotexts = plt.pie(
+            final_counts['count'],
+            labels=labels,
+            colors=colors,
+            autopct='%1.1f%%',
+            pctdistance=0.85,
+            startangle=140,
+            textprops={'fontsize': 10}
+        )
+
+
+        plt.title('Distribución de Negocios por Industria (Top 10 + Other)', pad=20)
+        plt.tight_layout(pad=5)
+
+        # Save and return image
         buf = BytesIO()
-        plt.savefig(buf, format="png")
+        plt.savefig(buf, format="png", bbox_inches='tight', dpi=120)
         buf.seek(0)
         plt.close()
 
-        # Enviar la imagen
         return send_file(buf, mimetype='image/png')
 
     except Exception as e:

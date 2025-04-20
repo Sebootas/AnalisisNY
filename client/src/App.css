@@ -277,3 +277,29 @@ th {
   border: 1px solid #ddd;
   white-space: nowrap;
 }
+.chart-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #eee;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.chart-container {
+  overflow-x: auto;
+  margin: 20px 0;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+}
+
+/* For heatmaps specifically */
+.heatmap-container {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.heatmap-container img {
+  min-width: 800px;  /* Match your generated image width */
+}
