@@ -14,7 +14,6 @@ CORS(app)
 
 @app.route("/")
 def home():
-    # Redirects to the '/api/analyze' route
     return redirect(url_for('analyze'))
 
 def is_likely_individual(name):
@@ -128,9 +127,11 @@ def analyze_data(business_df, demo_df):
     }
 
 
-@app.route('/api/analyze', methods=['POST'])
+@app.route('/api/analyze', methods=['GET', 'POST'])
 def analyze():
     try:
+        if request.method == 'GET':
+            return "Please submit your data via POST request"
         business_file = request.files.get('business')
         demo_file = request.files.get('demographics')
 
