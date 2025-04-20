@@ -297,52 +297,75 @@ def bar_business_per_capita_plot():
 @app.route('/api/plot/correlation_heatmap', methods=['POST'])
 def correlation_heatmap_plot():
     try:
-        # Obtener archivos
+        # Get files
         business_file = request.files.get('business')
         demo_file = request.files.get('demographics')
 
         if not business_file or not demo_file:
-            return jsonify({"error": "Archivos de negocios o demográficos faltantes."}), 400
+            return jsonify({"error": "Missing business or demographic files."}), 400
 
-        # Leer archivos
+        # Read files
         business_df = pd.read_csv(business_file, low_memory=False)
         demo_df = pd.read_csv(demo_file, low_memory=False)
 
         business_df.columns = business_df.columns.str.strip()
         demo_df.columns = demo_df.columns.str.strip()
 
-        # Encontrar columnas ZIP
+        # Find ZIP columns
         business_zip_col = find_zip_column(business_df.columns, ['ZIP', 'ZIPCODE', 'ZIP CODE', 'Address ZIP'])
         demo_zip_col = find_zip_column(demo_df.columns, ['JURISDICTION NAME', 'ZIP', 'ZIPCODE'])
 
         if not business_zip_col or not demo_zip_col:
-            return jsonify({"error": "No se pudo encontrar una columna ZIP válida en los archivos."}), 400
+            return jsonify({"error": "Could not find a valid ZIP column in the files."}), 400
 
         business_df[business_zip_col] = business_df[business_zip_col].astype(str).str.zfill(5)
         demo_df[demo_zip_col] = demo_df[demo_zip_col].astype(str).str.zfill(5)
 
-        # Agrupar negocios por ZIP
+        # Group businesses by ZIP and count
         business_counts = business_df.groupby(business_zip_col).size().reset_index(name='business_count')
         business_counts.rename(columns={business_zip_col: 'ZIP'}, inplace=True)
 
-        # Preparar datos demográficos
-        demo_df.rename(columns={demo_zip_col: 'ZIP'}, inplace=True)
+        # Prepare demographic data, focusing on relevant columns
+        demo_zip = demo_df[[demo_zip_col,
+                            'COUNT GENDER TOTAL',
+                            'PERCENT FEMALE',
+                            'PERCENT HISPANIC LATINO',
+                            'PERCENT AMERICAN INDIAN',
+                            'PERCENT ASIAN NON HISPANIC',
+                            'PERCENT WHITE NON HISPANIC',
+                            'PERCENT BLACK NON HISPANIC']].copy()
+        demo_zip.rename(columns={demo_zip_col: 'ZIP',
+                                 'COUNT GENDER TOTAL': 'Total Population',
+                                 'PERCENT FEMALE': 'Percent Female',
+                                 'PERCENT HISPANIC LATINO': 'Percent Hispanic Latino',
+                                 'PERCENT AMERICAN INDIAN': 'Percent American Indian',
+                                 'PERCENT ASIAN NON HISPANIC': 'Percent Asian Non Hispanic',
+                                 'PERCENT WHITE NON HISPANIC': 'Percent White Non Hispanic',
+                                 'PERCENT BLACK NON HISPANIC': 'Percent Black Non Hispanic'}, inplace=True)
+        demo_zip = demo_zip.dropna()
 
-        # Combinar datasets
-        merged = pd.merge(demo_df, business_counts, on='ZIP', how='inner')
+        # Merge datasets
+        merged_data = pd.merge(business_counts, demo_zip, on='ZIP', how='inner')
 
-        # Filtrar columnas numéricas para la correlación
-        numeric_cols = merged.select_dtypes(include=['number']).columns
+        # Calculate business density (businesses per 1000 residents)
+        merged_data['business_density'] = (merged_data['business_count'] / merged_data['Total Population']) * 1000
 
-        # Calcular matriz de correlación
-        corr = merged[numeric_cols].corr()
+        # Calculate the correlation matrix for relevant columns
+        correlation_matrix = merged_data[['business_density',
+                                          'Total Population',
+                                          'Percent Female',
+                                          'Percent Hispanic Latino',
+                                          'Percent American Indian',
+                                          'Percent Asian Non Hispanic',
+                                          'Percent White Non Hispanic',
+                                          'Percent Black Non Hispanic']].corr()
 
-        # Crear heatmap
-        plt.figure(figsize=(12, 10))
-        sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', square=True)
-        plt.title('Heatmap de Correlación entre Variables Numéricas')
+        # Create heatmap
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+        plt.title('Correlation between Business Density and Demographics by ZIP Code')
 
-        # Devolver imagen como archivo
+        # Return image as file
         buf = BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
