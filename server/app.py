@@ -14,7 +14,8 @@ CORS(app)
 
 @app.route("/")
 def home():
-    return "The API is up and running! 🎉"
+    # Redirects to the '/api/analyze' route
+    return redirect(url_for('analyze'))
 
 def is_likely_individual(name):
     name = str(name).strip().lower()
