@@ -14,7 +14,14 @@ CORS(app)
 
 @app.route("/")
 def home():
-    return redirect(url_for('analyze'))
+    return """
+    <h1>Upload CSV Files</h1>
+    <form action="/api/analyze" method="post" enctype="multipart/form-data">
+        Business CSV: <input type="file" name="business"><br><br>
+        Demographics CSV: <input type="file" name="demographics"><br><br>
+        <input type="submit" value="Analyze">
+    </form>
+    """
 
 def is_likely_individual(name):
     name = str(name).strip().lower()
@@ -127,11 +134,10 @@ def analyze_data(business_df, demo_df):
     }
 
 
-@app.route('/api/analyze', methods=['GET', 'POST'])
+@app.route('/api/analyze', methods=['POST'])
 def analyze():
     try:
-        if request.method == 'GET':
-            return "Please submit your data via POST request"
+
         business_file = request.files.get('business')
         demo_file = request.files.get('demographics')
 
