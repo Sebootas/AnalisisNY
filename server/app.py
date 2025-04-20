@@ -252,21 +252,39 @@ def bar_business_per_capita_plot():
 
         # Merge y cálculo
         combined_data = pd.merge(business_zip_counts, demo_zip, on='ZIP', how='inner')
+
+        # Filtrar ZIPs con población cero y calcular métrica
+        combined_data = combined_data[combined_data['Total Population'] > 0]
         combined_data['business_per_capita'] = (combined_data['business_count'] / combined_data['Total Population']) * 1000
 
-        combined_data.sort_values(by='business_per_capita', ascending=False, inplace=True)
+        # Ordenar y limitar a top 10
+        combined_data = combined_data.sort_values('business_per_capita', ascending=False).head(10)
 
-        # Crear gráfico
+        # Crear gráfico con colores distintos
         plt.figure(figsize=(12, 6))
-        plt.bar(combined_data['ZIP'], combined_data['business_per_capita'], color='teal')
+        colors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+                 '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac']
+
+        bars = plt.bar(combined_data['ZIP'],
+                      combined_data['business_per_capita'],
+                      color=colors[:len(combined_data)])
+
         plt.xlabel('ZIP Code')
-        plt.ylabel('Businesses per 1000 Residents')
-        plt.title('Businesses per 1000 Residents by ZIP')
-        plt.xticks(rotation=90)
+        plt.ylabel('Negocios por 1000 Residentes')
+        plt.title('Top 10 Códigos ZIP por Negocios per Cápita')
+        plt.xticks(rotation=45)
+
+        # Añadir valores encima de las barras
+        for bar in bars:
+            height = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}',
+                    ha='center', va='bottom')
+
         plt.tight_layout()
 
         buf = BytesIO()
-        plt.savefig(buf, format="png")
+        plt.savefig(buf, format="png", dpi=120)
         buf.seek(0)
         plt.close()
 
@@ -275,7 +293,6 @@ def bar_business_per_capita_plot():
     except Exception as e:
         print(f"Plot error: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/plot/correlation_heatmap', methods=['POST'])
 def correlation_heatmap_plot():
