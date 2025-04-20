@@ -339,7 +339,7 @@ function App() {
                         ))}
                     </ul>
 
-                    <h3>Top ZIPs with Most Individuals (Solo nombres tipo persona)</h3>
+                    <h3>Top ZIPs with Most Individuals</h3>
                     <table>
                         <thead>
                         <tr>
@@ -358,7 +358,7 @@ function App() {
                     </table>
                     {renderPagination(individualZipPage, individualZipData.length, setIndividualZipPage)}
 
-                    <h3>Negocios agrupados por ZIP e Industria</h3>
+                    <h3>Businesses grouped by ZIP code and Industry</h3>
                     <table>
                         <thead>
                         <tr>
