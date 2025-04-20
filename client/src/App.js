@@ -16,64 +16,83 @@ const ETHNICITY_COLUMNS = [
 
 
 function App() {
+    // Estados para los archivos cargados
     const [businessFile, setBusinessFile] = useState(null);
     const [demoFile, setDemoFile] = useState(null);
+
+    // Estado general del análisis y errores
     const [analysis, setAnalysis] = useState(null);
+    const [errorMessage, setErrorMessage] = useState("");
+
+    // Estados para paginación
     const [businessPage, setBusinessPage] = useState(1);
     const [demoPage, setDemoPage] = useState(1);
     const [zipIndustryPage, setZipIndustryPage] = useState(1);
     const [individualZipPage, setIndividualZipPage] = useState(1);
+
+    // Datos procesados que se mostrarán
     const [businessData, setBusinessData] = useState([]);
     const [demoData, setDemoData] = useState([]);
     const [zipIndustryData, setZipIndustryData] = useState([]);
     const [individualZipData, setIndividualZipData] = useState([]);
-    const [errorMessage, setErrorMessage] = useState("");
+
+    // Vista previa de archivos
     const [businessPreview, setBusinessPreview] = useState([]);
     const [demoPreview, setDemoPreview] = useState([]);
+
+    // Estado de carga
     const [loading, setLoading] = useState(false);
 
+    // Imágenes de visualización de gráficas
     const [plotImages, setPlotImages] = useState({
         industryPie: null,
         businessPerCapita: null,
         correlationHeatmap: null,
     });
 
+    // Extraer datos étnicos de una fila de demografía
     const getEthnicityData = (zipDemoRow) =>
         ETHNICITY_COLUMNS.map(col => ({
             ethnicity: col,
             value: parseFloat(zipDemoRow[col]) || 0
         }));
 
+    // Maneja la carga de archivos y genera vista previa
     const handleFileChange = (e, setter, setPreview) => {
         const file = e.target.files[0];
         if (!file) return;
 
         setter(file);
 
+        // Parseo del CSV con encabezado
         Papa.parse(file, {
             complete: (result) => {
-                setPreview(result.data.slice(0, 5));
+                setPreview(result.data.slice(0, 5)); // muestra primeras 5 filas
             },
             header: true,
         });
     };
 
+    // URLs para obtener las imágenes de los plots
     const PLOT_URLS = {
         industryPie: "http://localhost:5000/api/plot/pie_industries",
         businessPerCapita: "http://localhost:5000/api/plot/bar_business_per_capita",
         correlationHeatmap: "http://localhost:5000/api/plot/correlation_heatmap"
     };
 
+    // Ejecuta el análisis cuando se presiona el botón
     const handleAnalyze = async () => {
         setErrorMessage("");
         setLoading(true);
 
+        // Verifica que ambos archivos estén cargados
         if (!businessFile || !demoFile) {
             setErrorMessage("Please upload both files.");
             setLoading(false);
             return;
         }
 
+        // Función interna para enviar los archivos al servidor
         const tryAnalyze = async (bizFile, demoFile) => {
             const formData = new FormData();
             formData.append("business", bizFile);
@@ -91,39 +110,47 @@ function App() {
         };
 
         try {
+            // Primer intento de análisis
             let data = await tryAnalyze(businessFile, demoFile);
 
             if (data.status === "success") {
+                // Si todo va bien, se actualizan los estados con los datos recibidos
                 setAnalysis(data.analysis);
                 setBusinessData(data.analysis.business_data);
                 setDemoData(data.analysis.demo_data);
                 setZipIndustryData(data.analysis.grouped_by_zip_industry);
                 setIndividualZipData(data.analysis.top_individual_zipcodes);
+
+                // Reinicia la paginación
                 setBusinessPage(1);
                 setDemoPage(1);
                 setZipIndustryPage(1);
                 setIndividualZipPage(1);
 
+                // Solicita las gráficas
                 fetchPlotImages();
 
             } else {
+                // Verifica si el error fue por columnas ZIP incorrectas
                 const switched = data?.error?.toLowerCase().includes("no se encontró una columna zip válida");
 
                 if (switched) {
+                    // Intenta invertir los archivos (demográficos vs negocios)
                     const retryData = await tryAnalyze(demoFile, businessFile);
                     if (retryData.status === "success") {
+                        // Si funciona, carga los nuevos datos
                         setAnalysis(retryData.analysis);
                         setBusinessData(retryData.analysis.business_data);
                         setDemoData(retryData.analysis.demo_data);
                         setZipIndustryData(retryData.analysis.grouped_by_zip_industry);
                         setIndividualZipData(retryData.analysis.top_individual_zipcodes);
+
                         setBusinessPage(1);
                         setDemoPage(1);
                         setZipIndustryPage(1);
                         setIndividualZipPage(1);
 
                         fetchPlotImages();
-
                     } else {
                         setErrorMessage("Error al analizar incluso tras intercambiar archivos: " + (retryData.message || retryData.error));
                     }
@@ -139,9 +166,10 @@ function App() {
         }
     };
 
-// Fetch plot images
+    // Solicita imágenes de las gráficas desde el backend
     const fetchPlotImages = async () => {
         try {
+            // Envía archivos a cada endpoint correspondiente y obtiene un blob de imagen
             const fetchImage = async (url, files) => {
                 const formData = new FormData();
                 for (const [key, file] of Object.entries(files)) {
@@ -154,19 +182,20 @@ function App() {
                 });
 
                 const blob = await response.blob();
-                return URL.createObjectURL(blob);
+                return URL.createObjectURL(blob); // Crea URL local para la imagen
             };
-
 
             const files = {
                 business: businessFile,
                 demographics: demoFile
             };
 
+            // Obtiene todas las gráficas
             const industryPie = await fetchImage(PLOT_URLS.industryPie, { business: businessFile });
             const businessPerCapita = await fetchImage(PLOT_URLS.businessPerCapita, files);
             const correlationHeatmap = await fetchImage(PLOT_URLS.correlationHeatmap, files);
 
+            // Actualiza los estados con las URLs de las imágenes
             setPlotImages({
                 industryPie,
                 businessPerCapita,
@@ -177,11 +206,13 @@ function App() {
         }
     };
 
+    // Paginación de datos para tablas
     function paginate(data, page, pageSize) {
         if (!Array.isArray(data)) return [];
         const start = (page - 1) * pageSize;
         return data.slice(start, start + pageSize);
     }
+
 
     function renderPagination(currentPage, totalItems, setPage) {
         const totalPages = Math.ceil(totalItems / PAGE_SIZE);

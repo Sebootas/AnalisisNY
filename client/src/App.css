@@ -267,7 +267,7 @@ th {
 }
 
 .table-scroll table {
-  min-width: 900px; /* ajusta según la cantidad de columnas */
+  min-width: 900px;
   border-collapse: collapse;
 }
 
@@ -301,5 +301,5 @@ th {
 }
 
 .heatmap-container img {
-  min-width: 800px;  /* Match your generated image width */
+  min-width: 800px;
 }
