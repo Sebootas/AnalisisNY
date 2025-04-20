@@ -12,6 +12,10 @@ from io import BytesIO
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/")
+def home():
+    return "The API is up and running! 🎉"
+
 def is_likely_individual(name):
     name = str(name).strip().lower()
     if any(word in name for word in ["corp", "inc", "llc", "co", "company", "corporation", "&", "store"]):
